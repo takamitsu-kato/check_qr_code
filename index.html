@@ -79,6 +79,23 @@
             resultDiv.style.display = 'inline-block';
             resultDiv.className = 'loading';
             resultDiv.innerText = "通信中...";
+            
+            // 現在日時を YYYY/MM/DD HH:MM (日本時間) の形式で取得
+            const now = new Date();
+            const formatter = new Intl.DateTimeFormat('ja-JP', {
+                                  timeZone: 'Asia/Tokyo',
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: false
+
+            });
+
+            // 日付フォーマットの整形 (YYYY/MM/DD HH:MM)
+            const formattedDate = formatter.format(now).replace(/\//g, '/');
+           
 
             try {
                 // GASはCORS制限回避のため Content-Type: text/plain で送るのが一般的です
@@ -89,7 +106,7 @@
                     },
                     body: JSON.stringify({
                         searchText: decodedText,
-                        writeValue: "スマホから読取成功"
+                        writeValue: formattedDate
                     })
                 });
 
