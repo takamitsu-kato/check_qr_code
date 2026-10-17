@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QRコード読取APIチェッカー</title>
+    <!-- Html5Qrcode ライブラリの読み込み -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            font-size: 1.5rem;
+            color: #333;
+        }
+        #reader {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #result-container {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 2.5rem;
+            font-weight: bold;
+            display: inline-block;
+            min-width: 200px;
+        }
+        .ok {
+            background-color: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        .ng {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        .loading {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffeeba;
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>QRコード スキャン認証</h1>
+    
+    <!-- カメラ映像が表示されるエリア -->
+    <div id="reader"></div>
+
+    <!-- 結果表示エリア -->
+    <div>
+        <div id="result-container" class="loading" style="display: none;">判定中...</div>
+    </div>
+
+    <script>
+        // ★ここにGASのウェブアプリのURLを入力してください
+        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwIYj4MOUDmGD3LTdP3nh9WsLglEJbMDcpxwrhTU8WgqWoV52mUh-7AZ-8fnpXTmT6_Aw/exec";
+
+        let isScanning = true; // 連続読み取りを防ぐフラグ
+
+        async function onScanSuccess(decodedText, decodedResult) {
+            if (!isScanning) return;
+            isScanning = false; // スキャンを一時停止
+
+            const resultDiv = document.getElementById('result-container');
+            resultDiv.style.display = 'inline-block';
+            resultDiv.className = 'loading';
+            resultDiv.innerText = "通信中...";
+
+            try {
+                // GASはCORS制限回避のため Content-Type: text/plain で送るのが一般的です
+                const response = await fetch(GAS_API_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "text/plain;charset=utf-8",
+                    },
+                    body: JSON.stringify({
+                        searchText: decodedText,
+                        writeValue: "スマホから読取成功"
+                    })
+                });
+
+                const data = await response.json();
+
+                // レスポンスの判定
+                if (data.status === "OK") {
+                    resultDiv.className = 'ok';
+                    resultDiv.innerText = "OK";
+                } else {
+                    resultDiv.className = 'ng';
+                    resultDiv.innerText = "NG";
+                }
+
+            } catch (error) {
+                console.error("通信エラー:", error);
+                resultDiv.className = 'ng';
+                resultDiv.innerText = "通信エラー";
+            }
+
+            // 3秒後に再スキャン可能にする
+            setTimeout(() => {
+                isScanning = true;
+                resultDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // カメラの初期化と起動
+        const html5QrCode = new Html5Qrcode("reader");
+        html5QrCode.start(
+            { facingMode: "environment" }, // 外側カメラ（背面カメラ）を指定
+            {
+                fps: 10,    // フレームレート
+                qrbox: { width: 250, height: 250 } // 読み取り枠のサイズ
+            },
+            onScanSuccess
+        ).catch(err => {
+            console.error("カメラの起動に失敗しました:", err);
+            alert("カメラの起動に失敗しました。権限やHTTPS接続を確認してください。");
+        });
+    </script>
+</body>
+</html>
